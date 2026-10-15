@@ -70,6 +70,7 @@ class GameView(context: Context) : SurfaceView(context), Runnable, SurfaceHolder
     private val coins = mutableListOf<Coin>()
     private val goombas = mutableListOf<Goomba>()
     private val rivers = mutableListOf<River>()
+    private val fishes = mutableListOf<CheepCheep>()
     private val platforms = mutableListOf<Platform>()
     private val powerUps = mutableListOf<PowerUp>()
     private val projectiles = mutableListOf<Projectile>()
@@ -91,9 +92,9 @@ class GameView(context: Context) : SurfaceView(context), Runnable, SurfaceHolder
     private val attackTouchArea = RectF()
 
     // Vị trí nút bấm Menu
-    private val charBeigeBtn = RectF()
-    private val charPinkBtn = RectF()
-    private val charGreenBtn = RectF()
+    private val charMarioBtn = RectF()
+    private val charLuigiBtn = RectF()
+    private val charToadBtn = RectF()
 
     private val diffEasyBtn = RectF()
     private val diffMedBtn = RectF()
@@ -139,18 +140,6 @@ class GameView(context: Context) : SurfaceView(context), Runnable, SurfaceHolder
         isFakeBoldText = true
         textAlign = Paint.Align.CENTER
     }
-    private val retroHudLabelPaint = Paint().apply {
-        color = Color.WHITE
-        textSize = 28f
-        isFakeBoldText = true
-        textAlign = Paint.Align.CENTER
-    }
-    private val retroHudValuePaint = Paint().apply {
-        color = Color.WHITE
-        textSize = 32f
-        isFakeBoldText = true
-        textAlign = Paint.Align.CENTER
-    }
     private val attackGatePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.argb(200, 255, 130, 55)
     }
@@ -187,6 +176,83 @@ class GameView(context: Context) : SurfaceView(context), Runnable, SurfaceHolder
         color = Color.rgb(235, 90, 0)
         style = Paint.Style.FILL
     }
+    private val splashSubYellowPaint = Paint().apply {
+        color = Color.rgb(255, 220, 0)
+        textSize = 34f
+        isFakeBoldText = true
+        textAlign = Paint.Align.CENTER
+    }
+    private val copyPaint = Paint().apply {
+        color = Color.WHITE
+        textSize = 24f
+        textAlign = Paint.Align.CENTER
+    }
+    private val cardLabelPaint = Paint().apply {
+        color = Color.WHITE
+        textSize = 28f
+        isFakeBoldText = true
+        textAlign = Paint.Align.CENTER
+    }
+    private val diffLabelPaint = Paint().apply {
+        color = Color.WHITE
+        textSize = 26f
+        isFakeBoldText = true
+        textAlign = Paint.Align.CENTER
+    }
+    private val cachedHintPaint = Paint(sectionPaint)
+    private val gameOverPaint = Paint().apply {
+        color = Color.RED
+        textSize = 80f
+        isFakeBoldText = true
+        textAlign = Paint.Align.CENTER
+    }
+
+    // HUD Taskbar Paints & Rects
+    private val hudBarRect = RectF()
+    private val hudBgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.argb(225, 15, 22, 38)
+        style = Paint.Style.FILL
+    }
+    private val hudBorderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.rgb(255, 215, 0)
+        style = Paint.Style.STROKE
+        strokeWidth = 3f
+    }
+    private val hudLabelYellowPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.rgb(255, 220, 0)
+        textSize = 21f
+        isFakeBoldText = true
+        textAlign = Paint.Align.CENTER
+    }
+    private val hudValueWhitePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.WHITE
+        textSize = 28f
+        isFakeBoldText = true
+        textAlign = Paint.Align.CENTER
+    }
+    private val hudHeartPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.rgb(240, 45, 55)
+    }
+    private val hudCoinCirclePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.rgb(255, 200, 0)
+    }
+
+    // Reusable rects to prevent allocation during frame drawing
+    private val tempTileRect = RectF()
+    private val tempDirtRect = RectF()
+
+    // Cached HUD strings
+    private var cachedScoreStr = "000000"
+    private var cachedCoinStr = "x00"
+    private var cachedWorldStr = "1-1"
+    private var cachedTimeStr = "400"
+    private var cachedLivesStr = "3"
+
+    private var lastScore = -1
+    private var lastCoinCount = -1
+    private var lastRemainingTime = -1
+    private var lastWorldName = ""
+    private var lastLives = -1
 
     init {
         holder.addCallback(this)
@@ -200,6 +266,9 @@ class GameView(context: Context) : SurfaceView(context), Runnable, SurfaceHolder
             bitmapCache = BitmapCache(context)
         }
         surfaceReady = true
+        if (width > 0 && height > 0) {
+            updateMenuBounds(width.toFloat(), height.toFloat())
+        }
         startGameThread()
     }
 
@@ -253,14 +322,15 @@ class GameView(context: Context) : SurfaceView(context), Runnable, SurfaceHolder
             scaledBgHills = Bitmap.createScaledBitmap(cache.bgHills, width, (height * 0.5f).toInt(), true)
         }
 
-        val cardW = 190f
+        val cardW = 180f
         val cardH = 150f
         val charY = hF * 0.28f
-        val startCharX = (wF - (cardW * 3 + 30f * 2)) / 2f
+        val gap = 30f
+        val startCharX = (wF - (cardW * 3 + gap * 2)) / 2f
 
-        charBeigeBtn.set(startCharX, charY, startCharX + cardW, charY + cardH)
-        charPinkBtn.set(startCharX + cardW + 30f, charY, startCharX + cardW * 2 + 30f, charY + cardH)
-        charGreenBtn.set(startCharX + (cardW + 30f) * 2, charY, startCharX + cardW * 3 + 60f, charY + cardH)
+        charMarioBtn.set(startCharX, charY, startCharX + cardW, charY + cardH)
+        charLuigiBtn.set(startCharX + (cardW + gap), charY, startCharX + cardW * 2 + gap, charY + cardH)
+        charToadBtn.set(startCharX + (cardW + gap) * 2, charY, startCharX + cardW * 3 + gap * 2, charY + cardH)
 
         val diffW = 220f
         val diffH = 85f
@@ -300,9 +370,9 @@ class GameView(context: Context) : SurfaceView(context), Runnable, SurfaceHolder
         score = 0
         coinCount = 0
         lives = when (selectedDifficulty) {
-            Difficulty.EASY -> 5
-            Difficulty.MEDIUM -> 3
-            Difficulty.HARD -> 1
+            Difficulty.EASY -> 7
+            Difficulty.MEDIUM -> 5
+            Difficulty.HARD -> 3
         }
         levelsList = LevelData.getLevels(selectedDifficulty)
         currentLevelIndex = 0
@@ -335,8 +405,11 @@ class GameView(context: Context) : SurfaceView(context), Runnable, SurfaceHolder
             ChallengeRules.forDifficulty(selectedDifficulty)) else null
 
         rivers.clear()
-        for (rData in level.rivers) {
-            rivers.add(River(rData.startX, rData.endX, groundY, cache))
+        fishes.clear()
+        for ((index, rData) in level.rivers.withIndex()) {
+            val r = River(rData.startX, rData.endX, groundY, cache)
+            rivers.add(r)
+            fishes.add(CheepCheep(rData.startX, rData.endX, groundY, index * 0.45f))
         }
 
         platforms.clear()
@@ -394,7 +467,11 @@ class GameView(context: Context) : SurfaceView(context), Runnable, SurfaceHolder
         gameState = GameState.LEVEL_TRANSITION
     }
 
-    override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {}
+    override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {
+        if (width > 0 && height > 0) {
+            updateMenuBounds(width.toFloat(), height.toFloat())
+        }
+    }
 
     override fun surfaceDestroyed(holder: SurfaceHolder) {
         surfaceReady = false
@@ -596,14 +673,14 @@ class GameView(context: Context) : SurfaceView(context), Runnable, SurfaceHolder
 
         for (pUp in powerUps) {
             if (!pUp.isCollected) {
-                pUp.update(dt)
+                pUp.update(dt, groundY, blocks, pipes)
                 if (RectF.intersects(marioBounds, pUp.getBounds())) {
                     pUp.isCollected = true
                     soundManager.playCoin()
                     score += 500
                     when (pUp.type) {
                         PowerUpType.MUSHROOM -> m.growBig()
-                        PowerUpType.STAR -> m.enableSuperSpeed()
+                        PowerUpType.STAR -> m.enableStarInvincibility()
                         PowerUpType.COIN -> coinCount++
                     }
                 }
@@ -615,7 +692,21 @@ class GameView(context: Context) : SurfaceView(context), Runnable, SurfaceHolder
         for (cactus in cacti) {
             cactus.update(dt, marioBounds.centerX())
             if (cactus.canHit() && RectF.intersects(marioBounds, cactus.getBounds())) {
-                if (hurtPlayer(m)) return
+                if (m.isStarInvincible) {
+                    cactus.isAlive = false
+                    score += 200
+                    soundManager.playStomp()
+                } else if (hurtPlayer(m)) return
+            }
+        }
+        for (fish in fishes) {
+            fish.update(dt)
+            if (fish.isAlive && fish.isJumping && RectF.intersects(marioBounds, fish.getBounds())) {
+                if (m.isStarInvincible) {
+                    fish.isAlive = false
+                    score += 200
+                    soundManager.playStomp()
+                } else if (hurtPlayer(m)) return
             }
         }
         for (bird in birds) {
@@ -627,7 +718,11 @@ class GameView(context: Context) : SurfaceView(context), Runnable, SurfaceHolder
                     speedY = 90f, gravity = 720f))
             }
             if (RectF.intersects(marioBounds, bird.getBounds())) {
-                if (m.velocityY > 0f && m.y + m.size - m.velocityY * dt <= bird.getBounds().top + 25f) {
+                if (m.isStarInvincible) {
+                    bird.isAlive = false
+                    score += 300
+                    soundManager.playStomp()
+                } else if (m.velocityY > 0f && m.y + m.size - m.velocityY * dt <= bird.getBounds().top + 25f) {
                     bird.isAlive = false
                     m.velocityY = -550f
                     score += 300
@@ -691,6 +786,16 @@ class GameView(context: Context) : SurfaceView(context), Runnable, SurfaceHolder
                     }
                 }
                 if (!proj.isActive) continue
+                for (fish in fishes) {
+                    if (fish.isAlive && fish.isJumping && RectF.intersects(projBounds, fish.getBounds())) {
+                        fish.isAlive = false
+                        proj.isActive = false
+                        score += 200
+                        soundManager.playStomp()
+                        break
+                    }
+                }
+                if (!proj.isActive) continue
             }
 
             val b = boss
@@ -707,7 +812,7 @@ class GameView(context: Context) : SurfaceView(context), Runnable, SurfaceHolder
 
             if (!proj.isPlayerBullet && RectF.intersects(projBounds, marioBounds)) {
                 proj.isActive = false
-                if (m.invincibleTimer <= 0f) {
+                if (!m.isStarInvincible && m.invincibleTimer <= 0f) {
                     if (m.isBig) {
                         m.shrinkToNormal()
                         soundManager.playHurt()
@@ -749,7 +854,11 @@ class GameView(context: Context) : SurfaceView(context), Runnable, SurfaceHolder
                 if (!goomba.isStomped) {
                     val gBounds = goomba.getBounds()
                     if (RectF.intersects(marioBounds, gBounds)) {
-                        if (m.velocityY > 0 && m.y + m.size - m.velocityY * dt <= gBounds.top + 30f) {
+                        if (m.isStarInvincible) {
+                            goomba.stomp()
+                            score += 200
+                            soundManager.playStomp()
+                        } else if (m.velocityY > 0 && m.y + m.size - m.velocityY * dt <= gBounds.top + 30f) {
                             goomba.stomp()
                             m.velocityY = -550f
                             score += 200
@@ -812,7 +921,7 @@ class GameView(context: Context) : SurfaceView(context), Runnable, SurfaceHolder
 
     /** True when the caller must stop updating the old level. */
     private fun hurtPlayer(m: Mario): Boolean {
-        if (m.invincibleTimer > 0f) return false
+        if (m.isStarInvincible || m.invincibleTimer > 0f) return false
         if (m.isBig) {
             m.shrinkToNormal()
             soundManager.playHurt()
@@ -840,8 +949,6 @@ class GameView(context: Context) : SurfaceView(context), Runnable, SurfaceHolder
                 val cache = bitmapCache
                 val wF = width.toFloat()
                 val hF = height.toFloat()
-
-                updateMenuBounds(wF, hF)
 
                 when (gameState) {
                     GameState.SPLASH_SCREEN -> drawSplashScreen(canvas, cache, wF, hF)
@@ -879,14 +986,7 @@ class GameView(context: Context) : SurfaceView(context), Runnable, SurfaceHolder
         canvas.drawRoundRect(titleBox, 30f, 30f, cardBorderPaint)
 
         canvas.drawText("SUPER MARIO BROS", wF / 2f, hF * 0.32f, splashTitlePaint)
-
-        val subTextPaint = Paint().apply {
-            color = Color.rgb(255, 220, 0)
-            textSize = 34f
-            isFakeBoldText = true
-            textAlign = Paint.Align.CENTER
-        }
-        canvas.drawText("MOBILE EDITION", wF / 2f, hF * 0.42f, subTextPaint)
+        canvas.drawText("MOBILE EDITION", wF / 2f, hF * 0.42f, splashSubYellowPaint)
 
         if (cache != null) {
             val marioX = wF / 2f - 45f
@@ -904,11 +1004,6 @@ class GameView(context: Context) : SurfaceView(context), Runnable, SurfaceHolder
             canvas.drawText("CHẠM MỌI NƠI ĐỂ BẮT ĐẦU", wF / 2f, hF * 0.88f, splashSubPaint)
         }
 
-        val copyPaint = Paint().apply {
-            color = Color.WHITE
-            textSize = 24f
-            textAlign = Paint.Align.CENTER
-        }
         canvas.drawText("© 2026 SUPPER MARIO EDITION", wF / 2f, hF * 0.95f, copyPaint)
     }
 
@@ -920,16 +1015,16 @@ class GameView(context: Context) : SurfaceView(context), Runnable, SurfaceHolder
         canvas.drawText("CHỌN NHÂN VẬT", wF / 2f, hF * 0.25f, sectionPaint)
 
         if (cache != null) {
-            drawCharacterCard(canvas, charBeigeBtn, cache.marioIdle, "HERO", selectedCharacter == CharacterType.BEIGE)
-            drawCharacterCard(canvas, charPinkBtn, cache.pinkIdle, "PRINCESS", selectedCharacter == CharacterType.PINK)
-            drawCharacterCard(canvas, charGreenBtn, cache.greenIdle, "LUIGI", selectedCharacter == CharacterType.GREEN)
+            drawCharacterCard(canvas, charMarioBtn, cache.marioIdle, "MARIO", selectedCharacter == CharacterType.MARIO || selectedCharacter == CharacterType.BEIGE)
+            drawCharacterCard(canvas, charLuigiBtn, cache.luigiIdle, "LUIGI", selectedCharacter == CharacterType.LUIGI || selectedCharacter == CharacterType.GREEN)
+            drawCharacterCard(canvas, charToadBtn, cache.toadIdle, "TOAD", selectedCharacter == CharacterType.TOAD || selectedCharacter == CharacterType.TOADETTE || selectedCharacter == CharacterType.PINK)
         }
 
         canvas.drawText("CHỌN ĐỘ KHÓ", wF / 2f, hF * 0.54f, sectionPaint)
 
-        drawDifficultyBtn(canvas, diffEasyBtn, "DỄ (5 Mạng)", selectedDifficulty == Difficulty.EASY)
-        drawDifficultyBtn(canvas, diffMedBtn, "VỪA (3 Mạng)", selectedDifficulty == Difficulty.MEDIUM)
-        drawDifficultyBtn(canvas, diffHardBtn, "KHÓ (1 Mạng)", selectedDifficulty == Difficulty.HARD)
+        drawDifficultyBtn(canvas, diffEasyBtn, "DỄ (7 Mạng)", selectedDifficulty == Difficulty.EASY)
+        drawDifficultyBtn(canvas, diffMedBtn, "VỪA (5 Mạng)", selectedDifficulty == Difficulty.MEDIUM)
+        drawDifficultyBtn(canvas, diffHardBtn, "KHÓ (3 Mạng)", selectedDifficulty == Difficulty.HARD)
 
         canvas.drawRoundRect(startGameBtn, 25f, 25f, startBtnPaint)
         canvas.drawRoundRect(startGameBtn, 25f, 25f, cardBorderPaint)
@@ -948,13 +1043,7 @@ class GameView(context: Context) : SurfaceView(context), Runnable, SurfaceHolder
         val srcRect = Rect(0, 0, bitmap.width, bitmap.height)
         canvas.drawBitmap(bitmap, srcRect, iconRect, spritePaint)
 
-        val labelPaint = Paint().apply {
-            color = Color.WHITE
-            textSize = 28f
-            isFakeBoldText = true
-            textAlign = Paint.Align.CENTER
-        }
-        canvas.drawText(label, rect.centerX(), rect.bottom - 15f, labelPaint)
+        canvas.drawText(label, rect.centerX(), rect.bottom - 15f, cardLabelPaint)
     }
 
     private fun drawDifficultyBtn(canvas: Canvas, rect: RectF, label: String, isSelected: Boolean) {
@@ -964,13 +1053,7 @@ class GameView(context: Context) : SurfaceView(context), Runnable, SurfaceHolder
             canvas.drawRoundRect(rect, 15f, 15f, cardBorderPaint)
         }
 
-        val labelPaint = Paint().apply {
-            color = Color.WHITE
-            textSize = 26f
-            isFakeBoldText = true
-            textAlign = Paint.Align.CENTER
-        }
-        canvas.drawText(label, rect.centerX(), rect.centerY() + 10f, labelPaint)
+        canvas.drawText(label, rect.centerX(), rect.centerY() + 10f, diffLabelPaint)
     }
 
     private fun drawLevelTransition(canvas: Canvas, cache: BitmapCache?, wF: Float, hF: Float) {
@@ -980,16 +1063,19 @@ class GameView(context: Context) : SurfaceView(context), Runnable, SurfaceHolder
         canvas.drawText(worldName, wF / 2f, hF / 2f - 40f, titlePaint)
 
         val challenge = currentLevelData?.challenge.orEmpty()
-        val hintPaint = Paint(sectionPaint)
-        val hintWidth = hintPaint.measureText(challenge)
-        if (hintWidth > wF - 50f) hintPaint.textSize *= (wF - 50f) / hintWidth
-        canvas.drawText(challenge, wF / 2f, hF / 2f - 100f, hintPaint)
+        cachedHintPaint.set(sectionPaint)
+        val hintWidth = cachedHintPaint.measureText(challenge)
+        if (hintWidth > wF - 50f) cachedHintPaint.textSize = sectionPaint.textSize * ((wF - 50f) / hintWidth)
+        else cachedHintPaint.textSize = sectionPaint.textSize
+
+        canvas.drawText(challenge, wF / 2f, hF / 2f - 100f, cachedHintPaint)
         cache?.let { c ->
             val iconSize = 80f
             val marioBmp = when (selectedCharacter) {
-                CharacterType.BEIGE -> c.marioIdle
-                CharacterType.PINK -> c.pinkIdle
-                CharacterType.GREEN -> c.greenIdle
+                CharacterType.MARIO, CharacterType.BEIGE -> c.marioIdle
+                CharacterType.LUIGI, CharacterType.GREEN -> c.luigiIdle
+                CharacterType.TOAD -> c.toadIdle
+                CharacterType.TOADETTE, CharacterType.PINK -> c.toadetteIdle
             }
             val srcRect = Rect(0, 0, marioBmp.width, marioBmp.height)
             val dstRect = RectF(wF / 2f - 90f, hF / 2f + 10f, wF / 2f - 90f + iconSize, hF / 2f + 10f + iconSize)
@@ -1038,11 +1124,11 @@ class GameView(context: Context) : SurfaceView(context), Runnable, SurfaceHolder
                 }
 
                 if (!isOverRiver) {
-                    val tileRect = RectF(currX, groundY, currX + tileSize, groundY + tileSize)
-                    canvas.drawBitmap(cache.grassTop, null, tileRect, null)
+                    tempTileRect.set(currX, groundY, currX + tileSize, groundY + tileSize)
+                    canvas.drawBitmap(cache.grassTop, null, tempTileRect, null)
 
-                    val dirtRect = RectF(currX, groundY + tileSize, currX + tileSize, hF)
-                    canvas.drawBitmap(cache.dirtCenter, null, dirtRect, null)
+                    tempDirtRect.set(currX, groundY + tileSize, currX + tileSize, hF)
+                    canvas.drawBitmap(cache.dirtCenter, null, tempDirtRect, null)
                 }
                 currX += tileSize
             }
@@ -1071,6 +1157,7 @@ class GameView(context: Context) : SurfaceView(context), Runnable, SurfaceHolder
         boss?.let { if (it.x + 200f >= viewLeft && it.x <= viewRight) it.draw(canvas) }
         for (plat in platforms) if (plat.bounds.right >= viewLeft && plat.bounds.left <= viewRight) plat.draw(canvas)
         for (cactus in cacti) cactus.draw(canvas)
+        for (fish in fishes) fish.draw(canvas)
         for (bird in birds) if (bird.getBounds().right >= viewLeft && bird.getBounds().left <= viewRight) bird.draw(canvas)
         for (pipe in pipes) if (pipe.bounds.right >= viewLeft && pipe.bounds.left <= viewRight) pipe.draw(canvas)
         for (block in blocks) if (block.bounds.right >= viewLeft && block.bounds.left <= viewRight) block.draw(canvas)
@@ -1088,44 +1175,67 @@ class GameView(context: Context) : SurfaceView(context), Runnable, SurfaceHolder
     }
 
     private fun drawRetroHUD(canvas: Canvas, wF: Float) {
-        val scoreStr = String.format("%06d", score)
-        val coinStr = String.format("x%02d", coinCount)
-        val worldStr = currentLevelData?.worldName?.replace("WORLD ", "") ?: "1-1"
-        val timeStr = String.format("%03d", remainingTime)
+        if (score != lastScore) {
+            lastScore = score
+            cachedScoreStr = String.format("%06d", score)
+        }
+        if (coinCount != lastCoinCount) {
+            lastCoinCount = coinCount
+            cachedCoinStr = String.format("x%02d", coinCount)
+        }
+        if (remainingTime != lastRemainingTime) {
+            lastRemainingTime = remainingTime
+            cachedTimeStr = String.format("%03d", remainingTime)
+        }
+        val currentWorld = currentLevelData?.worldName?.replace("WORLD ", "") ?: "1-1"
+        if (currentWorld != lastWorldName) {
+            lastWorldName = currentWorld
+            cachedWorldStr = currentWorld
+        }
+        if (lives != lastLives) {
+            lastLives = lives
+            cachedLivesStr = "x$lives"
+        }
 
-        val col1 = wF * 0.10f
-        val col2 = wF * 0.28f
+        // Beautiful Top HUD Taskbar Banner
+        hudBarRect.set(16f, 10f, wF - 16f, 82f)
+        canvas.drawRoundRect(hudBarRect, 18f, 18f, hudBgPaint)
+        canvas.drawRoundRect(hudBarRect, 18f, 18f, hudBorderPaint)
+
+        val col1 = wF * 0.12f
+        val col2 = wF * 0.31f
         val col3 = wF * 0.50f
-        val col4 = wF * 0.70f
+        val col4 = wF * 0.69f
         val col5 = wF * 0.88f
 
-        val labelY = 38f
-        val valueY = 72f
+        val labelY = 36f
+        val valueY = 68f
 
-        canvas.drawText("SCORE", col1, labelY, retroHudLabelPaint)
-        canvas.drawText(scoreStr, col1, valueY, retroHudValuePaint)
+        // SCORE
+        canvas.drawText("SCORE", col1, labelY, hudLabelYellowPaint)
+        canvas.drawText(cachedScoreStr, col1, valueY, hudValueWhitePaint)
 
-        canvas.drawText("COINS", col2, labelY, retroHudLabelPaint)
-        canvas.drawText(coinStr, col2, valueY, retroHudValuePaint)
+        // COINS with Coin Icon
+        canvas.drawCircle(col2 - 42f, labelY + 12f, 9f, hudCoinCirclePaint)
+        canvas.drawText("COINS", col2, labelY, hudLabelYellowPaint)
+        canvas.drawText(cachedCoinStr, col2, valueY, hudValueWhitePaint)
 
-        canvas.drawText("WORLD", col3, labelY, retroHudLabelPaint)
-        canvas.drawText(worldStr, col3, valueY, retroHudValuePaint)
+        // WORLD
+        canvas.drawText("WORLD", col3, labelY, hudLabelYellowPaint)
+        canvas.drawText(cachedWorldStr, col3, valueY, hudValueWhitePaint)
 
-        canvas.drawText("TIME", col4, labelY, retroHudLabelPaint)
-        canvas.drawText(timeStr, col4, valueY, retroHudValuePaint)
+        // TIME
+        canvas.drawText("TIME", col4, labelY, hudLabelYellowPaint)
+        canvas.drawText(cachedTimeStr, col4, valueY, hudValueWhitePaint)
 
-        canvas.drawText("LIVES", col5, labelY, retroHudLabelPaint)
-        canvas.drawText("$lives", col5, valueY, retroHudValuePaint)
+        // LIVES with Heart Icon
+        canvas.drawCircle(col5 - 35f, labelY + 10f, 8f, hudHeartPaint)
+        canvas.drawText("LIVES", col5, labelY, hudLabelYellowPaint)
+        canvas.drawText(cachedLivesStr, col5, valueY, hudValueWhitePaint)
     }
 
     private fun drawGameOver(canvas: Canvas, wF: Float, hF: Float) {
         canvas.drawRect(0f, 0f, wF, hF, overlayPaint)
-        val gameOverPaint = Paint().apply {
-            color = Color.RED
-            textSize = 80f
-            isFakeBoldText = true
-            textAlign = Paint.Align.CENTER
-        }
         canvas.drawText("GAME OVER", wF / 2f, hF / 2f - 30f, gameOverPaint)
         canvas.drawText("Chạm vào màn hình hoặc bấm SPACE để quay về Menu", wF / 2f, hF / 2f + 50f, sectionPaint)
     }
@@ -1151,7 +1261,7 @@ class GameView(context: Context) : SurfaceView(context), Runnable, SurfaceHolder
 
         val pJump = if (isJumpPressed) btnPressedPaint else btnNormalPaint
         canvas.drawRoundRect(jumpBtn, 25f, 25f, pJump)
-        canvas.drawText("SPACE", jumpBtn.centerX(), jumpBtn.centerY() + 18f, textPaint)
+        canvas.drawText("NHẢY", jumpBtn.centerX(), jumpBtn.centerY() + 18f, textPaint)
 
         if (m != null && m.weapon != WeaponType.NONE) {
             attackButtonRenderer.draw(canvas, attackBtn, m.weapon, isAttackPressed,
@@ -1174,9 +1284,9 @@ class GameView(context: Context) : SurfaceView(context), Runnable, SurfaceHolder
 
         if (gameState == GameState.START_MENU) {
             if (action == MotionEvent.ACTION_DOWN) {
-                if (charBeigeBtn.contains(touchX, touchY)) selectedCharacter = CharacterType.BEIGE
-                if (charPinkBtn.contains(touchX, touchY)) selectedCharacter = CharacterType.PINK
-                if (charGreenBtn.contains(touchX, touchY)) selectedCharacter = CharacterType.GREEN
+                if (charMarioBtn.contains(touchX, touchY)) selectedCharacter = CharacterType.MARIO
+                if (charLuigiBtn.contains(touchX, touchY)) selectedCharacter = CharacterType.LUIGI
+                if (charToadBtn.contains(touchX, touchY)) selectedCharacter = CharacterType.TOAD
 
                 if (diffEasyBtn.contains(touchX, touchY)) selectedDifficulty = Difficulty.EASY
                 if (diffMedBtn.contains(touchX, touchY)) selectedDifficulty = Difficulty.MEDIUM

@@ -11,7 +11,7 @@ class Mario(
     private var worldWidth: Float,
     private var screenHeight: Float,
     private val bitmapCache: BitmapCache,
-    var characterType: CharacterType = CharacterType.BEIGE
+    var characterType: CharacterType = CharacterType.MARIO
 ) {
     var weapon = WeaponType.NONE
 
@@ -22,9 +22,12 @@ class Mario(
 
     var speedTimer = 0f
     var invincibleTimer = 0f
+    var starInvincibleTimer = 0f
+        private set
+    val isStarInvincible get() = starInvincibleTimer > 0f
 
     var size = 80f
-        get() = if (isBig) 115f else 80f
+        get() = if (isBig) 98f else 80f
 
     val startX = 100f
     val startY = screenHeight - size - 100f
@@ -44,22 +47,36 @@ class Mario(
     var isGrounded = false
         private set
 
+    var isSkidding = false
+        private set
+
     var facingLeft = false
     private var animTime = 0f
+    private var spinJumpAngle = 0f
 
     private val dstRect = RectF()
     private val srcRect = Rect()
     private val spritePaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
-    private val auraPaint = Paint().apply {
-        color = Color.YELLOW
-        alpha = 150
+    private val auraPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.rgb(255, 215, 0)
+        alpha = 180
+        style = Paint.Style.STROKE
+        strokeWidth = 8f
+    }
+    private val fireAuraPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.rgb(255, 90, 0)
+        alpha = 160
         style = Paint.Style.STROKE
         strokeWidth = 6f
     }
-    private val swordPaint = Paint().apply {
-        color = Color.GRAY
+    private val swordPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.CYAN
         strokeWidth = 8f
         style = Paint.Style.STROKE
+    }
+    private val skidDustPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        color = Color.WHITE
+        alpha = 180
     }
 
     fun reset() {
@@ -68,27 +85,38 @@ class Mario(
         velocityX = 0f
         velocityY = 0f
         isGrounded = true
+        isSkidding = false
         facingLeft = false
         isBig = false
         isSuperSpeed = false
         speedTimer = 0f
         invincibleTimer = 0f
+        starInvincibleTimer = 0f
         weapon = WeaponType.NONE
+        spinJumpAngle = 0f
     }
 
     fun growBig() {
-        isBig = true
-        y -= 35f
+        if (!isBig) {
+            isBig = true
+            y -= 18f
+        }
     }
 
     fun shrinkToNormal() {
         isBig = false
-        invincibleTimer = 1.2f
+        invincibleTimer = 2.0f
     }
 
     fun enableSuperSpeed() {
         isSuperSpeed = true
         speedTimer = 10.0f
+    }
+
+    fun enableStarInvincibility() {
+        starInvincibleTimer = 5.0f
+        isSuperSpeed = true
+        speedTimer = 5.0f
     }
 
     fun getBounds(): RectF {
@@ -103,18 +131,27 @@ class Mario(
             }
         }
 
+        if (starInvincibleTimer > 0f) {
+            starInvincibleTimer -= dt
+        }
+
         if (invincibleTimer > 0f) {
             invincibleTimer -= dt
         }
 
-        val currentMaxSpeed = if (isSuperSpeed) baseSpeed * 1.5f else baseSpeed
+        val currentMaxSpeed = if (isSuperSpeed) baseSpeed * 1.55f else baseSpeed
+
+        // Detect Skidding (slid/turnaround from Super Mario model sheet)
+        isSkidding = isGrounded && ((isLeft && velocityX > 100f) || (isRight && velocityX < -100f))
 
         if (isLeft && !isRight) {
-            velocityX = (velocityX - accel * dt).coerceAtLeast(-currentMaxSpeed)
-            facingLeft = true
+            val currentAccel = if (isSkidding) accel * 1.8f else accel
+            velocityX = (velocityX - currentAccel * dt).coerceAtLeast(-currentMaxSpeed)
+            if (!isSkidding) facingLeft = true
         } else if (isRight && !isLeft) {
-            velocityX = (velocityX + accel * dt).coerceAtMost(currentMaxSpeed)
-            facingLeft = false
+            val currentAccel = if (isSkidding) accel * 1.8f else accel
+            velocityX = (velocityX + currentAccel * dt).coerceAtMost(currentMaxSpeed)
+            if (!isSkidding) facingLeft = false
         } else {
             if (velocityX > 0) {
                 velocityX = (velocityX - friction * dt).coerceAtLeast(0f)
@@ -134,9 +171,16 @@ class Mario(
         }
 
         if (abs(velocityX) > 20f && isGrounded) {
-            animTime += dt
+            val animRate = if (abs(velocityX) > 280f) 16f else 11f
+            animTime += dt * (animRate / 10f)
         } else {
             animTime = 0f
+        }
+
+        if (!isGrounded) {
+            spinJumpAngle = (spinJumpAngle + 360f * dt * 2.5f) % 360f
+        } else {
+            spinJumpAngle = 0f
         }
     }
 
@@ -187,14 +231,16 @@ class Mario(
         }
 
         val (idleBmp, walkABmp, walkBBmp, jumpBmp) = when (characterType) {
-            CharacterType.BEIGE -> Quadruple(bitmapCache.marioIdle, bitmapCache.marioWalkA, bitmapCache.marioWalkB, bitmapCache.marioJump)
-            CharacterType.PINK -> Quadruple(bitmapCache.pinkIdle, bitmapCache.pinkWalkA, bitmapCache.pinkWalkB, bitmapCache.pinkJump)
-            CharacterType.GREEN -> Quadruple(bitmapCache.greenIdle, bitmapCache.greenWalkA, bitmapCache.greenWalkB, bitmapCache.greenJump)
+            CharacterType.MARIO, CharacterType.BEIGE -> Quadruple(bitmapCache.marioIdle, bitmapCache.marioWalkA, bitmapCache.marioWalkB, bitmapCache.marioJump)
+            CharacterType.LUIGI, CharacterType.GREEN -> Quadruple(bitmapCache.luigiIdle, bitmapCache.luigiWalkA, bitmapCache.luigiWalkB, bitmapCache.luigiJump)
+            CharacterType.TOAD -> Quadruple(bitmapCache.toadIdle, bitmapCache.toadWalkA, bitmapCache.toadWalkB, bitmapCache.toadJump)
+            CharacterType.TOADETTE, CharacterType.PINK -> Quadruple(bitmapCache.toadetteIdle, bitmapCache.toadetteWalkA, bitmapCache.toadetteWalkB, bitmapCache.toadetteJump)
         }
 
         val animFrame = ((animTime * 10f).toInt() % 2)
         val currentBitmap = when {
             !isGrounded -> jumpBmp
+            isSkidding -> walkBBmp
             abs(velocityX) > 20f -> if (animFrame == 0) walkABmp else walkBBmp
             else -> idleBmp
         }
@@ -203,16 +249,51 @@ class Mario(
         srcRect.set(0, 0, currentBitmap.width, currentBitmap.height)
 
         canvas.save()
-        if (facingLeft) {
-            canvas.scale(-1f, 1f, x + size / 2f, y + size / 2f)
+
+        val centerX = x + size / 2f
+        val centerY = y + size / 2f
+
+        // Skid dust effect (from Super Mario model sheet)
+        if (isSkidding) {
+            val dustX = if (facingLeft) x + size + 8f else x - 8f
+            canvas.drawCircle(dustX, y + size - 10f, 10f, skidDustPaint)
+            canvas.drawCircle(dustX + (if (facingLeft) 12f else -12f), y + size - 5f, 6f, skidDustPaint)
         }
+
+        if (facingLeft) {
+            canvas.scale(-1f, 1f, centerX, centerY)
+        }
+
+        // Spin jump tilt effect
+        if (!isGrounded && abs(velocityY) > 100f) {
+            val tiltAngle = if (facingLeft) -spinJumpAngle * 0.15f else spinJumpAngle * 0.15f
+            canvas.rotate(tiltAngle, centerX, centerY)
+        }
+
         canvas.drawBitmap(currentBitmap, srcRect, dstRect, spritePaint)
 
-        if (isSuperSpeed) {
-            canvas.drawCircle(x + size / 2f, y + size / 2f, size / 2f + 10f, auraPaint)
+        // Star Invincibility Rainbow / Gold Aura Effect (5 seconds)
+        if (starInvincibleTimer > 0f) {
+            val colorIdx = ((animTime * 25f).toInt() % 3)
+            auraPaint.color = when (colorIdx) {
+                0 -> Color.rgb(255, 215, 0)   // Gold
+                1 -> Color.rgb(255, 105, 180) // Pink
+                else -> Color.rgb(0, 230, 255) // Cyan
+            }
+            val pulsingRadius = size / 2f + 14f + ((animTime * 20f).toInt() % 8)
+            canvas.drawCircle(centerX, centerY, pulsingRadius, auraPaint)
+            canvas.drawCircle(centerX, centerY, pulsingRadius - 4f, fireAuraPaint)
+        } else if (isSuperSpeed) {
+            val pulsingRadius = size / 2f + 8f + ((animTime * 15f).toInt() % 6)
+            canvas.drawCircle(centerX, centerY, pulsingRadius, auraPaint)
         }
 
-        // Vẽ Cây Kiếm trên tay nếu đang cầm Kiếm
+        // Fire / Weapon Power Aura
+        if (weapon != WeaponType.NONE && weapon != WeaponType.SWORD) {
+            canvas.drawCircle(centerX, centerY, size / 2f + 4f, fireAuraPaint)
+        }
+
+        // Sword Effect
         if (weapon == WeaponType.SWORD) {
             val swordX = x + size
             canvas.drawLine(swordX, y + size / 2f, swordX + 35f, y + 10f, swordPaint)

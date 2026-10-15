@@ -12,9 +12,9 @@ data class ChallengeRules(
 ) {
     companion object {
         fun forDifficulty(difficulty: Difficulty) = when (difficulty) {
-            Difficulty.EASY -> ChallengeRules(0.95f, 1f, 0.9f, 1.15f, 10, 1.7f, 370f)
-            Difficulty.MEDIUM -> ChallengeRules(1.15f, 1.2f, 1f, 1f, 14, 1.4f, 440f)
-            Difficulty.HARD -> ChallengeRules(1.4f, 1.5f, 1.18f, 0.85f, 18, 1.15f, 510f)
+            Difficulty.EASY -> ChallengeRules(0.82f, 0.8f, 0.85f, 1.25f, 10, 1.8f, 360f)
+            Difficulty.MEDIUM -> ChallengeRules(0.95f, 0.95f, 0.95f, 1.15f, 12, 1.5f, 400f)
+            Difficulty.HARD -> ChallengeRules(1.15f, 1.15f, 1.05f, 1.0f, 16, 1.25f, 460f)
         }
     }
 }

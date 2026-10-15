@@ -5,9 +5,13 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 
 enum class CharacterType {
-    BEIGE,
-    PINK,
-    GREEN
+    MARIO,
+    LUIGI,
+    TOAD,
+    TOADETTE,
+    @Deprecated("Use MARIO") BEIGE,
+    @Deprecated("Use TOADETTE") PINK,
+    @Deprecated("Use LUIGI") GREEN
 }
 
 enum class Difficulty {
@@ -30,6 +34,21 @@ class BitmapCache(context: Context) {
     val marioWalkA: Bitmap = load(R.drawable.mario_walk_a)
     val marioWalkB: Bitmap = load(R.drawable.mario_walk_b)
     val marioJump: Bitmap = load(R.drawable.mario_jump)
+
+    val luigiIdle: Bitmap = load(R.drawable.green_idle)
+    val luigiWalkA: Bitmap = load(R.drawable.green_walk_a)
+    val luigiWalkB: Bitmap = load(R.drawable.green_walk_b)
+    val luigiJump: Bitmap = load(R.drawable.green_jump)
+
+    val toadIdle: Bitmap = load(R.drawable.pink_idle)
+    val toadWalkA: Bitmap = load(R.drawable.pink_walk_a)
+    val toadWalkB: Bitmap = load(R.drawable.pink_walk_b)
+    val toadJump: Bitmap = load(R.drawable.pink_jump)
+
+    val toadetteIdle: Bitmap = load(R.drawable.pink_idle)
+    val toadetteWalkA: Bitmap = load(R.drawable.pink_walk_a)
+    val toadetteWalkB: Bitmap = load(R.drawable.pink_walk_b)
+    val toadetteJump: Bitmap = load(R.drawable.pink_jump)
 
     val pinkIdle: Bitmap = load(R.drawable.pink_idle)
     val pinkWalkA: Bitmap = load(R.drawable.pink_walk_a)
